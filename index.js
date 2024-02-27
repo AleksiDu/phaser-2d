@@ -17,13 +17,21 @@ let config = {
 };
 
 let player;
+let player2;
 let stars;
 let bombs;
 let platforms;
 let cursors;
+let keyA;
+let keyS;
+let keyD;
+let keyW;
 let score = 0;
+let score2 = 0;
 let gameOver = false;
 let scoreText;
+let scoreText2;
+let gameOverText;
 
 let game = new Phaser.Game(config);
 
@@ -56,12 +64,16 @@ function create() {
   platforms.create(10, 100, "ground");
 
   // The player and its settings
-  player = this.physics.add.sprite(100, 450, "dude");
+  player = this.physics.add.sprite(100, 150, "dude");
+  player.setScale(0.8);
+  player2 = this.physics.add.sprite(100, 450, "dude");
+  player2.setScale(0.8);
 
   //  Player physics properties. Give the little guy a slight bounce.
   player.setBounce(0.2);
   player.setCollideWorldBounds(true);
-
+  player2.setBounce(0.2);
+  player2.setCollideWorldBounds(true);
   //  Our player animations, turning, walking left and walking right.
   this.anims.create({
     key: "left",
@@ -85,12 +97,16 @@ function create() {
 
   //  Input Events
   cursors = this.input.keyboard.createCursorKeys();
+  keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+  keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+  keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+  keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
 
   //  Some stars to collect, 12 in total, evenly spaced 70 pixels apart along the x axis
   stars = this.physics.add.group({
     key: "star",
     repeat: 11,
-    setXY: { x: 12, y: 0, stepX: 70 },
+    setXY: { x: 20, y: 0, stepX: 69 },
   });
 
   stars.children.iterate(function (child) {
@@ -106,15 +122,32 @@ function create() {
     fill: "#000",
   });
 
+  scoreText2 = this.add.text(584, 16, "score: 0", {
+    fontSize: "32px",
+    fill: "blue",
+  });
+
+  gameOverText = this.add.text(300, 16, "", {
+    fontSize: "32px",
+    fill: "red",
+  });
+
   //  Collide the player and the stars with the platforms
   this.physics.add.collider(player, platforms);
+  this.physics.add.collider(player2, platforms);
+  player2.setTint(0xfff);
   this.physics.add.collider(stars, platforms);
   this.physics.add.collider(bombs, platforms);
+  this.physics.add.collider(player, player2);
 
   //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
   this.physics.add.overlap(player, stars, collectStar, null, this);
 
   this.physics.add.collider(player, bombs, hitBomb, null, this);
+
+  this.physics.add.overlap(player2, stars, collectStar2, null, this);
+
+  this.physics.add.collider(player2, bombs, hitBomb, null, this);
 }
 
 function update() {
@@ -136,16 +169,36 @@ function update() {
     player.anims.play("turn");
   }
 
-  if (cursors.space.isDown && player.body.touching.down) {
+  if (cursors.up.isDown && player.body.touching.down) {
     player.setVelocityY(-330);
   }
-  if (cursors.up.isDown) {
+  // player 2
+
+  if (keyA.isDown) {
+    player2.setVelocityX(-160);
+
+    player2.anims.play("left", true);
+  } else if (keyD.isDown) {
+    player2.setVelocityX(160);
+
+    player2.anims.play("right", true);
+  } else {
+    player2.setVelocityX(0);
+
+    player2.anims.play("turn");
+  }
+
+  if (keyW.isDown && player2.body.touching.down) {
+    player2.setVelocityY(-330);
+  }
+
+  if (cursors.space.isDown) {
     let x =
       player.x < 400
         ? Phaser.Math.Between(400, 800)
         : Phaser.Math.Between(0, 400);
-    let bomb = bombs.create(x, 0, "bomb");
-    console.log(bomb);
+
+    let bomb = bombs.create(x, 16, "bomb");
     bomb.setBounce(1);
     bomb.setCollideWorldBounds(true);
     bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
@@ -179,12 +232,38 @@ function collectStar(player, star) {
   }
 }
 
+function collectStar2(player2, star) {
+  star.disableBody(true, true);
+
+  //  Add and update the score
+  score2 += 10;
+  scoreText2.setText("Score: " + score2);
+
+  if (stars.countActive(true) === 0) {
+    //  A new batch of stars to collect
+    stars.children.iterate(function (child) {
+      child.enableBody(true, child.x, 0, true, true);
+    });
+
+    let x =
+      player2.x < 400
+        ? Phaser.Math.Between(400, 800)
+        : Phaser.Math.Between(0, 400);
+
+    let bomb = bombs.create(x, 16, "bomb");
+    bomb.setBounce(1);
+    bomb.setCollideWorldBounds(true);
+    bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+    bomb.allowGravity = false;
+  }
+}
+
 function hitBomb(player, bomb) {
   this.physics.pause();
 
   player.setTint(0xff0000);
 
   player.anims.play("turn");
-  scoreText.setText("GAME OVER");
+  gameOverText.setText("GAME OVER");
   gameOver = true;
 }
